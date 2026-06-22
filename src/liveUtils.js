@@ -14,7 +14,7 @@ export function getCompleteLiveContext(liveData) {
   const secs = Math.floor(gameTimeRaw % 60);
   const formattedTime = `${mins}:${String(secs).padStart(2, "0")}`;
 
-  // 🛡️ SAFE MATCHING HELPER: Strips out #uwu tags to match pure name strings safely
+  // SAFE MATCHING HELPER: Strips out # tags to match pure name strings safely
   const cleanActiveName = activePlayer.summonerName.split('#')[0];
 
   // 2. State & Score Placeholders
@@ -63,7 +63,7 @@ export function getCompleteLiveContext(liveData) {
     };
   });
 
-  // Find your team safely using the same string cleaning logic
+  // Find team
   const activePlayerObj = allPlayers.find(
     (p) => p.summonerName.split('#')[0] === cleanActiveName,
   );
