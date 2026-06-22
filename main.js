@@ -152,7 +152,17 @@ function buildManualReplayCommand(gameId, token, port) {
 ipcMain.handle("fetch-match-history", async () => {
   const { token, port } = await getLcuCredentials();
   const url = `https://127.0.0.1:${port}/lol-match-history/v1/products/lol/current-summoner/matches?begIndex=0&endIndex=100`;
-  const rawJson = await runCurl(["--insecure", "--user", `riot:${token}`, "-X", "GET", url]);
+
+  const rawJson = await new Promise((resolve, reject) => {
+    require("node:https").get(url, {
+      headers: { "Authorization": `Basic ${Buffer.from(`riot:${token}`).toString("base64")}` },
+      rejectUnauthorized: false
+    }, (res) => {
+      let data = "";
+      res.on("data", chunk => data += chunk);
+      res.on("end", () => resolve(data));
+    }).on("error", reject);
+  });
 
   return { rawJson };
 });
