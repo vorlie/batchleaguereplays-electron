@@ -3,14 +3,18 @@ import { openDB } from "idb";
 const DB_NAME = "LeagueReplaysDB";
 const DB_VERSION = 1;
 
-const dbPromise = openDB(DB_NAME, DB_VERSION, {
-  upgrade(db) {
+const dbPromise = openDB(DB_NAME, DB_VERSION + 1, {
+  upgrade(db, oldVersion) {
     if (!db.objectStoreNames.contains("snapshots")) {
       db.createObjectStore("snapshots", { keyPath: "id" });
     }
 
     if (!db.objectStoreNames.contains("metadata")) {
       db.createObjectStore("metadata", { keyPath: "key" });
+    }
+
+    if (!db.objectStoreNames.contains("live_sessions")) {
+      db.createObjectStore("live_sessions", { keyPath: "summonerName" });
     }
   },
 });
@@ -51,3 +55,18 @@ export async function setMetadata(key, value) {
     updatedAt: new Date().toISOString(),
   });
 }
+
+export async function saveLiveSession(summonerName, liveData) {
+  const db = await dbPromise;
+  await db.put("live_sessions", {
+    summonerName,
+    liveData,
+    lastUpdated: new Date().toISOString()
+  });
+}
+
+export async function getLiveSessions() {
+  const db = await dbPromise;
+  return db.getAll("live_sessions");
+}
+

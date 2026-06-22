@@ -46,15 +46,16 @@ export default function App() {
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex h-10 shrink-0 items-center justify-between border-b border-line bg-slate-950 px-4">
           <div className="truncate text-xs text-slate-300">{banner}</div>
-          <div className="flex items-center gap-2">
-            <UpdateStatus />
+          <div className="flex items-center gap-2">            
             <button
               type="button"
-              onClick={initialization.refresh}
-              className="rounded border border-line px-3 py-1 text-xs text-slate-200 hover:bg-panelSoft"
+              onClick={() => window.leagueReplays.openLiveWindow()}
+              className="rounded border border-accent bg-accent/15 px-3 py-1 text-xs text-accent font-medium hover:bg-accent hover:text-slate-950 transition"
             >
-              Refresh
+              🖥️ Popout Live HUD
             </button>
+            
+            <UpdateStatus /> {/*[cite: 1] */}
           </div>
         </div>
         {logs.length ? (

@@ -4,6 +4,8 @@ const { app, BrowserWindow, ipcMain } = require("electron");
 const { autoUpdater } = require("electron-updater");
 
 const isDev = !app.isPackaged;
+let liveWindow = null; // 👈 Track the secondary window instance
+
 let updateState = {
   status: isDev ? "disabled" : "idle",
   message: isDev ? "Updates are disabled in development." : "Update check has not run yet.",
@@ -84,6 +86,41 @@ function createWindow() {
   }
 }
 
+// 👈 Spawn the standalone Live Monitor window frame
+function createLiveWindow() {
+  if (liveWindow) {
+    liveWindow.focus();
+    return;
+  }
+
+  liveWindow = new BrowserWindow({
+    width: 960,
+    height: 640,
+    minWidth: 800,
+    minHeight: 500,
+    title: "Live Game HUD Monitor",
+    backgroundColor: "#0f1720",
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false,
+    },
+  });
+
+  if (isDev) {
+    liveWindow.loadURL("http://localhost:5173/#live-tracker");
+  } else {
+    liveWindow.loadFile(path.join(__dirname, "dist", "index.html"), {
+      hash: "live-tracker",
+    });
+  }
+
+  liveWindow.on("closed", () => {
+    liveWindow = null;
+  });
+}
+
 function execCommand(command) {
   return new Promise((resolve, reject) => {
     exec(command, { windowsHide: true, maxBuffer: 1024 * 1024 }, (error, stdout, stderr) => {
@@ -148,6 +185,11 @@ function buildManualReplayCommand(gameId, token, port) {
   const url = `https://127.0.0.1:${port}/lol-replays/v1/rofls/${gameId}/download/graceful`;
   return `curl --insecure --user "riot:${token}" -X POST "${url}" -H "Content-Type: application/json" -d "{}"`;
 }
+
+// IPC Registrations
+ipcMain.handle("open-live-window", () => {
+  createLiveWindow();
+});
 
 ipcMain.handle("fetch-match-history", async () => {
   const { token, port } = await getLcuCredentials();
@@ -229,6 +271,7 @@ ipcMain.handle("install-update", () => {
   };
 });
 
+// AutoUpdater Listener Bindings
 autoUpdater.on("checking-for-update", () => {
   setUpdateState({
     status: "checking",
@@ -289,8 +332,33 @@ autoUpdater.on("error", (error) => {
   });
 });
 
+let liveTrackerInterval = null;
+
+function startLiveTracker() {
+  if (liveTrackerInterval) return;
+  liveTrackerInterval = setInterval(() => {
+    require("node:https").get("https://127.0.0.1:2999/liveclientdata/allgamedata", {
+      rejectUnauthorized: false
+    }, (res) => {
+      let data = "";
+      res.on("data", chunk => data += chunk);
+      res.on("end", () => {
+        try {
+          const snapshot = JSON.parse(data);
+          broadcast("live-game-data", snapshot);
+        } catch (e) {
+          // Parse failed, ignore
+        }
+      });
+    }).on("error", () => {
+      // Endpoint typically refuses connection when user isn't in a live game
+    });
+  }, 3000);
+}
+
 app.whenReady().then(() => {
   createWindow();
+  startLiveTracker();
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
